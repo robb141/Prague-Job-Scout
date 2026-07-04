@@ -1,0 +1,40 @@
+roles:
+  - Cloud engineer
+  - DevOps engineer
+  - Platform engineer
+  - Site reliability engineer
+  - SRE
+  - Kubernetes engineer
+  - AWS engineer
+  - Azure engineer
+  - Python developer
+  - Data engineer
+  - DevOps
+
+# Many job boards only say "Praha" without a district. Keep this true for
+# an all-Prague report so those postings are not dropped.
+include_unspecified_prague: true
+
+max_pages_per_query: 3
+request_delay_seconds: 1.0
+
+sources:
+  jobs_cz:
+    enabled: true
+  nofluffjobs:
+    enabled: true
+  startupjobs:
+    enabled: true
+  jenprace:
+    enabled: true
+  cocuma:
+    enabled: true
+  company_pages:
+    enabled: true
+    # Add direct company career pages here. The collector scans links and text
+    # for the role keywords above. Example:
+    # pages:
+    #   - company: Example Cloud Company
+    #     url: https://example.com/careers
+    #     location: Praha 8
+    pages: []
