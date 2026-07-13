@@ -21,6 +21,11 @@ request_delay_seconds: 1.0
 sources:
   jobs_cz:
     enabled: true
+  prace_cz:
+    enabled: true
+  linkedin:
+    # Public guest search; rate-limited by LinkedIn, failed queries are skipped.
+    enabled: true
   nofluffjobs:
     enabled: true
   startupjobs:

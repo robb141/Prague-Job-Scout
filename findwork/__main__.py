@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
@@ -11,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     parser = argparse.ArgumentParser(description="Collect Prague job postings and build a web report.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

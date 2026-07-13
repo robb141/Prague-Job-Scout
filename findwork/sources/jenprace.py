@@ -2,33 +2,20 @@ from __future__ import annotations
 
 import re
 import time
-from html import unescape
 from urllib.parse import urlencode, urljoin
 
-import requests
 from bs4 import BeautifulSoup, Tag
 
 from findwork.config import AppConfig
-from findwork.location import district_match, normalize_text
+from findwork.location import district_match
 from findwork.models import JobPosting
+from findwork.roles import match_role
 from findwork.sources.base import JobSource
 
 
 class JenPraceSource(JobSource):
     name = "jenprace"
     base_url = "https://www.jenprace.cz"
-
-    def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-                ),
-                "Accept-Language": "cs,en;q=0.8",
-            }
-        )
 
     def fetch(self, config: AppConfig) -> list[JobPosting]:
         jobs: dict[str, JobPosting] = {}
@@ -38,8 +25,7 @@ class JenPraceSource(JobSource):
                 if page > 1:
                     params["page"] = str(page)
                 url = f"{self.base_url}/nabidky/praha?{urlencode(params)}"
-                response = self.session.get(url, timeout=30)
-                response.raise_for_status()
+                response = self._get(url)
                 soup = BeautifulSoup(response.text, "html.parser")
                 cards = soup.select("article[data-cy^='offer-slug-']")
                 if not cards:
@@ -68,7 +54,7 @@ class JenPraceSource(JobSource):
         location = self._dedupe_repeated(self._text(card.select_one('[data-cy="offer-locality"]')))
         card_text = self._text(card)
         combined = f"{title} {company} {location} {card_text}"
-        if not self._matches_target_role(combined):
+        if not match_role(combined, config.roles):
             return None
 
         match = district_match(f"{location} {card_text}", config.include_unspecified_prague)
@@ -95,32 +81,13 @@ class JenPraceSource(JobSource):
             matched_query=role,
         )
 
-    def _matches_target_role(self, text: str) -> bool:
-        normalized = normalize_text(text)
-        terms = [
-            "aws",
-            "azure",
-            "cloud",
-            "data engineer",
-            "devops",
-            "infrastructure",
-            "kubernetes",
-            "linux",
-            "platform engineer",
-            "python",
-            "site reliability",
-            "sre",
-            "terraform",
-        ]
-        return any(term in normalized for term in terms)
-
     def _clean_title(self, value: str) -> str:
         return re.sub(r"\s+(TIP|Nutně vás hledají)$", "", value).strip()
 
     def _dedupe_repeated(self, value: str) -> str:
         parts = [part.strip() for part in re.split(r"\s*\|\s*", value) if part.strip()]
         if parts:
-            return parts[0]
+            value = parts[0]
         words = value.split()
         half = len(words) // 2
         if half and words[:half] == words[half:]:
@@ -130,8 +97,3 @@ class JenPraceSource(JobSource):
     def _source_id(self, url: str) -> str:
         found = re.search(r"/nabidka/([^/]+)/", url)
         return found.group(1) if found else url
-
-    def _text(self, node: Tag | None) -> str:
-        if not node:
-            return ""
-        return re.sub(r"\s+", " ", unescape(node.get_text(" ", strip=True))).strip()

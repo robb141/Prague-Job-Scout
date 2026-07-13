@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "findwork"
+version = "0.1.0"
+description = "Collects Prague job postings from several boards and builds an HTML report."
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.12",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["findwork*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -5,6 +5,7 @@ from html import escape
 from pathlib import Path
 
 from .config import AppConfig
+from .dates import posted_sort_key
 from .models import JobPosting
 
 
@@ -100,7 +101,12 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
       background: #eef2f6;
       z-index: 1;
       white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
     }}
+    th::after {{ content: ""; display: inline-block; width: 1em; }}
+    th.sorted-asc::after {{ content: " \\2191"; }}
+    th.sorted-desc::after {{ content: " \\2193"; }}
     tr.new {{ background: var(--new); }}
     a {{ color: #0b5cab; font-weight: 700; text-decoration: none; }}
     a:hover {{ text-decoration: underline; }}
@@ -139,7 +145,7 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
             <th>Position</th>
             <th>District</th>
             <th>Location</th>
-            <th>Posted</th>
+            <th data-sort-attr="posted">Posted</th>
             <th>Description</th>
             <th>Source</th>
             <th>Query</th>
@@ -153,11 +159,34 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
   </main>
   <script>
     const search = document.querySelector("#search");
-    const rows = [...document.querySelectorAll("#jobs tbody tr")];
+    const tbody = document.querySelector("#jobs tbody");
+    const rows = [...tbody.querySelectorAll("tr")];
+
     search.addEventListener("input", () => {{
       const needle = search.value.trim().toLowerCase();
       rows.forEach((row) => {{
         row.style.display = row.innerText.toLowerCase().includes(needle) ? "" : "none";
+      }});
+    }});
+
+    const headers = [...document.querySelectorAll("#jobs th")];
+    headers.forEach((th, index) => {{
+      th.addEventListener("click", () => {{
+        const descending = th.classList.contains("sorted-asc");
+        headers.forEach((other) => other.classList.remove("sorted-asc", "sorted-desc"));
+        th.classList.add(descending ? "sorted-desc" : "sorted-asc");
+
+        const attr = th.dataset.sortAttr;
+        const key = (row) =>
+          attr ? row.dataset[attr] || "" : row.children[index].innerText.trim().toLowerCase();
+        const sorted = [...rows].sort((a, b) => {{
+          const [ka, kb] = [key(a), key(b)];
+          if (ka === kb) return 0;
+          if (ka === "") return 1;  // unknown values always sort last
+          if (kb === "") return -1;
+          return (ka < kb ? -1 : 1) * (descending ? -1 : 1);
+        }});
+        sorted.forEach((row) => tbody.appendChild(row));
       }});
     }});
   </script>
@@ -170,7 +199,7 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
 def _html_row(job: JobPosting) -> str:
     row_class = " class=\"new\"" if job.is_new else ""
     status = "<span class=\"status\">NEW</span>" if job.is_new else "<span class=\"muted\">seen</span>"
-    return f"""<tr{row_class}>
+    return f"""<tr{row_class} data-posted="{escape(posted_sort_key(job.posted_date))}">
   <td>{status}</td>
   <td>{escape(job.company)}</td>
   <td><a href="{escape(job.url)}" target="_blank" rel="noopener">{escape(job.title)}</a></td>

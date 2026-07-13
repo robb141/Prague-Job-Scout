@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import re
 import time
-from html import unescape
 from urllib.parse import urlencode
 
-import requests
 from bs4 import BeautifulSoup, Tag
 
 from findwork.config import AppConfig
@@ -18,18 +16,6 @@ class JobsCzSource(JobSource):
     name = "jobs.cz"
     base_url = "https://www.jobs.cz/prace/praha/"
 
-    def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-                ),
-                "Accept-Language": "cs,en;q=0.8",
-            }
-        )
-
     def fetch(self, config: AppConfig) -> list[JobPosting]:
         jobs: dict[str, JobPosting] = {}
         for role in config.roles:
@@ -38,8 +24,7 @@ class JobsCzSource(JobSource):
                 if page > 1:
                     params["page"] = str(page)
                 url = f"{self.base_url}?{urlencode(params)}"
-                response = self.session.get(url, timeout=30)
-                response.raise_for_status()
+                response = self._get(url)
                 soup = BeautifulSoup(response.text, "html.parser")
                 cards = soup.select(".SearchResultCard")
                 if not cards:
@@ -164,14 +149,3 @@ class JobsCzSource(JobSource):
         if normalized in {"praha", "brno", "ostrava"}:
             return False
         return True
-
-    def _text(self, node: Tag | None) -> str:
-        if not node:
-            return ""
-        return re.sub(r"\s+", " ", unescape(node.get_text(" ", strip=True))).strip()
-
-    def _attr(self, node: Tag | None, name: str) -> str:
-        if not node:
-            return ""
-        value = node.get(name, "")
-        return str(value).strip()
