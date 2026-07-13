@@ -2,32 +2,19 @@ from __future__ import annotations
 
 import re
 import time
-from html import unescape
 from urllib.parse import urljoin
 
-import requests
 from bs4 import BeautifulSoup, Tag
 
 from findwork.config import AppConfig
-from findwork.location import district_match, normalize_text
+from findwork.location import district_match
 from findwork.models import JobPosting
+from findwork.roles import match_role
 from findwork.sources.base import JobSource
 
 
 class CompanyPagesSource(JobSource):
     name = "company_pages"
-
-    def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-                ),
-                "Accept-Language": "cs,en;q=0.8",
-            }
-        )
 
     def fetch(self, config: AppConfig) -> list[JobPosting]:
         pages = config.sources.get("company_pages", {}).get("pages") or []
@@ -40,8 +27,7 @@ class CompanyPagesSource(JobSource):
             if not company or not url:
                 continue
 
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
+            response = self._get(url)
 
             for job in self._parse_page(response.text, url, company, default_location, config):
                 jobs.setdefault(job.stable_id, job)
@@ -67,13 +53,11 @@ class CompanyPagesSource(JobSource):
             href = str(link.get("href") or "")
             nearby = self._nearby_text(link)
             combined = f"{text} {href} {nearby} {default_location}"
-            matched_role = self._matched_role(combined, config.roles)
+            matched_role = match_role(combined, config.roles)
             if not matched_role:
                 continue
 
             match = district_match(combined, config.include_unspecified_prague)
-            if not match and "praha" in normalize_text(combined):
-                match = "Praha, district not specified"
 
             jobs.append(
                 JobPosting(
@@ -93,24 +77,21 @@ class CompanyPagesSource(JobSource):
 
         return jobs
 
-    def _matched_role(self, text: str, roles: list[str]) -> str:
-        normalized = normalize_text(text)
-        for role in roles:
-            terms = [term for term in re.split(r"\s+", normalize_text(role)) if len(term) > 2]
-            if terms and all(term in normalized for term in terms):
-                return role
-        cloud_terms = ["devops", "cloud", "kubernetes", "sre", "platform engineer", "site reliability"]
-        for term in cloud_terms:
-            if term in normalized:
-                return term
-        return ""
-
     def _nearby_text(self, link: Tag) -> str:
-        parent = link
+        # Climb toward the job-listing container, but stop before the
+        # container text balloons into whole-page noise.
+        node = link
+        text = self._text(link)
         for _ in range(3):
-            if parent.parent:
-                parent = parent.parent
-        return self._text(parent)
+            parent = node.parent
+            if parent is None or parent.name in {"body", "html", "[document]"}:
+                break
+            parent_text = self._text(parent)
+            if len(parent_text) > 300:
+                break
+            node = parent
+            text = parent_text
+        return text
 
     def _location(self, text: str) -> str:
         found = re.search(r"(Praha(?:\s*[0-9])?(?:\s*[–-]\s*[\wÁ-ž]+)?)", text, flags=re.IGNORECASE)
@@ -118,8 +99,3 @@ class CompanyPagesSource(JobSource):
 
     def _shorten(self, text: str) -> str:
         return re.sub(r"\s+", " ", text).strip()[:300]
-
-    def _text(self, node: Tag | None) -> str:
-        if not node:
-            return ""
-        return re.sub(r"\s+", " ", unescape(node.get_text(" ", strip=True))).strip()

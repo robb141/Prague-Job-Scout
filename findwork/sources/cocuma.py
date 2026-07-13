@@ -1,34 +1,20 @@
 from __future__ import annotations
 
-import re
 import time
-from html import unescape
 from urllib.parse import quote_plus, urljoin
 
-import requests
 from bs4 import BeautifulSoup, Tag
 
 from findwork.config import AppConfig
 from findwork.location import district_match, normalize_text
 from findwork.models import JobPosting
+from findwork.roles import match_role
 from findwork.sources.base import JobSource
 
 
 class CocumaSource(JobSource):
     name = "cocuma"
     base_url = "https://www.cocuma.cz"
-
-    def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-                ),
-                "Accept-Language": "cs,en;q=0.8",
-            }
-        )
 
     def fetch(self, config: AppConfig) -> list[JobPosting]:
         jobs: dict[str, JobPosting] = {}
@@ -37,8 +23,7 @@ class CocumaSource(JobSource):
             for page in range(1, config.max_pages_per_query + 1):
                 path = "/jobs/" if page == 1 else f"/jobs/page/{page}/"
                 url = f"{self.base_url}{path}?search={query}"
-                response = self.session.get(url, timeout=30)
-                response.raise_for_status()
+                response = self._get(url)
                 soup = BeautifulSoup(response.text, "html.parser")
                 cards = soup.select("a.job-thumbnail")
                 if not cards:
@@ -64,10 +49,10 @@ class CocumaSource(JobSource):
             return None
 
         combined = f"{title} {company} {city} {schedule}"
-        if not self._matches_cloud_devops(combined, role):
+        if not match_role(combined, config.roles):
             return None
 
-        match = self._location_match(city)
+        match = self._location_match(city, config)
         if not match:
             return None
 
@@ -88,31 +73,8 @@ class CocumaSource(JobSource):
             matched_query=role,
         )
 
-    def _location_match(self, city: str) -> str | None:
+    def _location_match(self, city: str, config: AppConfig) -> str | None:
         normalized = normalize_text(city)
         if any(term in normalized for term in ["remote", "vzdáleně", "vzdaleně", "vzdalene"]):
             return "Remote"
-        return district_match(city, include_unspecified_prague=True)
-
-    def _matches_cloud_devops(self, text: str, role: str) -> bool:
-        normalized = normalize_text(text)
-        terms = [
-            "devops",
-            "cloud",
-            "platform",
-            "site reliability",
-            "sre",
-            "kubernetes",
-            "aws",
-            "azure",
-            "gcp",
-            "linux",
-            "infrastructure",
-            "infrastrukt",
-        ]
-        return any(term in normalized for term in terms)
-
-    def _text(self, node: Tag | None) -> str:
-        if not node:
-            return ""
-        return re.sub(r"\s+", " ", unescape(node.get_text(" ", strip=True))).strip()
+        return district_match(city, config.include_unspecified_prague)

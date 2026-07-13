@@ -31,11 +31,20 @@ Open the generated web report:
 
 Then visit http://127.0.0.1:8000.
 
+## Test
+
+```bash
+.venv/bin/pip install pytest
+.venv/bin/python -m pytest
+```
+
 ## Notes
 
 Current sources:
 
 - Jobs.cz
+- Prace.cz
+- LinkedIn (public guest search; rate-limited, so some queries may be skipped on busy runs)
 - NoFluffJobs
 - StartupJobs
 - JenPráce.cz

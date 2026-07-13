@@ -7,12 +7,12 @@ import xml.etree.ElementTree as ET
 from html import unescape
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from findwork.config import AppConfig
 from findwork.location import district_match, normalize_text
 from findwork.models import JobPosting
+from findwork.roles import match_role
 from findwork.sources.base import JobSource
 
 
@@ -20,27 +20,13 @@ class StartupJobsSource(JobSource):
     name = "startupjobs"
     sitemap_url = "https://www.startupjobs.cz/sitemap/offers.xml"
 
-    def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-                ),
-                "Accept-Language": "cs,en;q=0.8",
-            }
-        )
-
     def fetch(self, config: AppConfig) -> list[JobPosting]:
-        response = self.session.get(self.sitemap_url, timeout=30)
-        response.raise_for_status()
+        response = self._get(self.sitemap_url)
         urls = self._matching_offer_urls(response.text, config.roles)
 
         jobs: dict[str, JobPosting] = {}
         for url, matched_query in urls:
-            detail = self.session.get(url, timeout=30)
-            detail.raise_for_status()
+            detail = self._get(url)
             job = self._parse_detail(detail.text, url, matched_query, config)
             if job:
                 jobs.setdefault(job.stable_id, job)
@@ -51,17 +37,14 @@ class StartupJobsSource(JobSource):
     def _matching_offer_urls(self, xml_text: str, roles: list[str]) -> list[tuple[str, str]]:
         root = ET.fromstring(xml_text)
         namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-        role_terms = self._role_terms(roles)
         matched: list[tuple[str, str]] = []
 
         for loc in root.findall(".//sm:loc", namespace):
             url = (loc.text or "").strip()
             slug = urlparse(url).path.rsplit("/", 1)[-1]
-            normalized_slug = normalize_text(slug.replace("-", " "))
-            for term in role_terms:
-                if term in normalized_slug:
-                    matched.append((url, term))
-                    break
+            role = match_role(slug.replace("-", " "), roles)
+            if role:
+                matched.append((url, role))
 
         return matched
 
@@ -139,22 +122,6 @@ class StartupJobsSource(JobSource):
         if isinstance(company, dict):
             parts.extend([self._string(company.get("name")), self._string(company.get("description"))])
         return self._html_text(" ".join(parts))
-
-    def _role_terms(self, roles: list[str]) -> list[str]:
-        base_terms = {
-            "aws",
-            "azure",
-            "cloud",
-            "data engineer",
-            "devops",
-            "infrastructure",
-            "kubernetes",
-            "platform engineer",
-            "python",
-            "site reliability",
-            "sre",
-        }
-        return sorted({normalize_text(role) for role in roles} | base_terms, key=len, reverse=True)
 
     def _source_id(self, url: str) -> str:
         found = re.search(r"/nabidka/(\d+)/", url)
