@@ -3,10 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 from html import escape
 from pathlib import Path
+from urllib.parse import quote
 
 from .config import AppConfig
 from .dates import posted_sort_key
 from .models import JobPosting
+
+
+_FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    '<text y=".9em" font-size="90">\U0001f52d</text></svg>'
+)
+FAVICON_HREF = "data:image/svg+xml," + quote(_FAVICON_SVG)
 
 
 def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_at: str | None) -> None:
@@ -22,6 +30,7 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prague Job Scout</title>
+  <link rel="icon" type="image/svg+xml" href="{FAVICON_HREF}">
   <style>
     :root {{
       color-scheme: light;
