@@ -64,7 +64,7 @@ class JenPraceSource(JobSource):
         labels = [self._dedupe_repeated(self._text(label)) for label in card.select('[data-cy^="offer-label"]')]
         labels = [label for label in labels if label]
         date = self._text(card.select_one('[data-cy="offer-date-created"]'))
-        summary = " | ".join(dict.fromkeys([date, *labels, company]))[:300]
+        summary = " | ".join(dict.fromkeys(labels))[:300]
         url = urljoin(self.base_url, href)
 
         return JobPosting(
