@@ -113,7 +113,7 @@ class NoFluffJobsSource(JobSource):
 
         company = str(posting.get("name") or "").strip()
         salary = self._salary(posting)
-        summary_parts = [part for part in [salary, ", ".join(skills), company] if part]
+        summary_parts = [part for part in [salary, ", ".join(skills)] if part]
 
         return JobPosting(
             source=self.name,

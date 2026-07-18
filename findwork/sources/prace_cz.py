@@ -64,7 +64,7 @@ class PraceCzSource(JobSource):
             return None
 
         extras = [value for key, value in fields.items() if key not in {"nazev firmy", "lokalita"}]
-        summary = " | ".join(dict.fromkeys(part for part in [*extras, company] if part))[:300]
+        summary = " | ".join(dict.fromkeys(part for part in extras if part))[:300]
 
         return JobPosting(
             source=self.name,

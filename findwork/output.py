@@ -208,6 +208,7 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
 def _html_row(job: JobPosting) -> str:
     row_class = " class=\"new\"" if job.is_new else ""
     status = "<span class=\"status\">NEW</span>" if job.is_new else "<span class=\"muted\">seen</span>"
+    description = (job.company_description or job.summary).strip() or "-"
     return f"""<tr{row_class} data-posted="{escape(posted_sort_key(job.posted_date))}">
   <td>{status}</td>
   <td>{escape(job.company)}</td>
@@ -215,7 +216,7 @@ def _html_row(job: JobPosting) -> str:
   <td>{escape(job.district_match)}</td>
   <td>{escape(job.location)}</td>
   <td>{escape(job.posted_date)}</td>
-  <td>{escape(job.company_description or job.summary)}</td>
+  <td>{escape(description)}</td>
   <td>{escape(job.source)}</td>
   <td>{escape(job.matched_query)}</td>
 </tr>"""

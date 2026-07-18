@@ -68,8 +68,8 @@ class CocumaSource(JobSource):
             location=city,
             district_match=match,
             posted_date="",
-            company_description=" | ".join(part for part in [schedule, company] if part),
-            summary=" | ".join(part for part in [schedule, company] if part),
+            company_description=schedule,
+            summary=schedule,
             matched_query=role,
         )
 

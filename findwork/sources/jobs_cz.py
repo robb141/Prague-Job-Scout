@@ -56,7 +56,7 @@ class JobsCzSource(JobSource):
 
         company = self._company_from_card(card, title)
         posted_date = self._posted_date_from_card(card)
-        summary = self._summary_from_card(card, title, company, location)
+        summary = self._summary_from_card(card)
 
         return JobPosting(
             source=self.name,
@@ -100,12 +100,8 @@ class JobsCzSource(JobSource):
                 return line
         return ""
 
-    def _summary_from_card(self, card: Tag, title: str, company: str, location: str) -> str:
+    def _summary_from_card(self, card: Tag) -> str:
         parts = []
-        status = self._posted_date_from_card(card)
-        if status:
-            parts.append(status)
-
         body = card.select_one(".SearchResultCard__body")
         if body:
             for tag in body.select(".Tag"):
@@ -113,8 +109,6 @@ class JobsCzSource(JobSource):
                 if value and value not in parts:
                     parts.append(value)
 
-        if company:
-            parts.append(company)
         return " ".join(parts)[:300]
 
     def _posted_date_from_card(self, card: Tag) -> str:

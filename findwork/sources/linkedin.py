@@ -90,8 +90,7 @@ class LinkedInSource(JobSource):
         url = self._attr(link, "href").split("?")[0]
         source_id = self._source_id(card, url)
         posted = self._attr(card.select_one("time[datetime]"), "datetime")
-        salary = self._text(card.select_one(".job-search-card__salary-info"))
-        summary = " | ".join(part for part in [salary, company] if part)
+        summary = self._text(card.select_one(".job-search-card__salary-info"))
 
         return JobPosting(
             source=self.name,
