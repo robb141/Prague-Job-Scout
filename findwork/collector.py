@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from .collation import czech_sort_key
 from .config import load_config
 from .models import JobPosting
 from .output import write_html
@@ -77,7 +78,7 @@ def collect_jobs(config_path: Path) -> CollectSummary:
     state = load_state(state_path)
 
     jobs = [replace(job, is_new=job.stable_id not in state.seen) for job in collected.values()]
-    jobs.sort(key=lambda item: (not item.is_new, item.company.lower(), item.title.lower()))
+    jobs.sort(key=lambda item: (not item.is_new, czech_sort_key(item.company), czech_sort_key(item.title)))
 
     html_path = output_dir / "index.html"
 

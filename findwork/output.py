@@ -179,6 +179,8 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
     }});
 
     const headers = [...document.querySelectorAll("#jobs th")];
+    // Czech collation: č sorts right after c, š after s, etc.
+    const collator = new Intl.Collator("cs", {{ numeric: true }});
     headers.forEach((th, index) => {{
       th.addEventListener("click", () => {{
         const descending = th.classList.contains("sorted-asc");
@@ -187,13 +189,13 @@ def write_html(path: Path, jobs: list[JobPosting], config: AppConfig, last_run_a
 
         const attr = th.dataset.sortAttr;
         const key = (row) =>
-          attr ? row.dataset[attr] || "" : row.children[index].innerText.trim().toLowerCase();
+          attr ? row.dataset[attr] || "" : row.children[index].innerText.trim();
         const sorted = [...rows].sort((a, b) => {{
           const [ka, kb] = [key(a), key(b)];
           if (ka === kb) return 0;
           if (ka === "") return 1;  // unknown values always sort last
           if (kb === "") return -1;
-          return (ka < kb ? -1 : 1) * (descending ? -1 : 1);
+          return collator.compare(ka, kb) * (descending ? -1 : 1);
         }});
         sorted.forEach((row) => tbody.appendChild(row));
       }});
