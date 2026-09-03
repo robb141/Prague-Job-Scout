@@ -29,7 +29,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Restore state
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/state.json
           key: findwork-state-${{ github.run_id }}
