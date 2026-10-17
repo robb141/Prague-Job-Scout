@@ -26,10 +26,11 @@ def test_roundtrip_marks_jobs_seen(tmp_path):
 
 def test_legacy_seen_ids_list_is_migrated(tmp_path):
     path = tmp_path / "state.json"
-    path.write_text(json.dumps({"last_run_at": "2026-07-01T00:00:00+00:00", "seen_ids": ["test:old"]}))
+    last_run = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    path.write_text(json.dumps({"last_run_at": last_run, "seen_ids": ["test:old"]}))
 
     state = load_state(path)
-    assert state.seen == {"test:old": "2026-07-01T00:00:00+00:00"}
+    assert state.seen == {"test:old": last_run}
 
     save_state(path, state, [job("new")])
     assert load_state(path).seen_ids == {"test:old", "test:new"}
