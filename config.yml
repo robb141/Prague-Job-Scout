@@ -11,6 +11,9 @@ roles:
   - Data engineer
   - DevOps
   - Infrastructure engineer
+  - Github
+  - Python Automation
+  - AI engineer
 
 # Many job boards only say "Praha" without a district. Keep this true for
 # an all-Prague report so those postings are not dropped.
