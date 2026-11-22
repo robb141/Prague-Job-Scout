@@ -5,6 +5,7 @@ Collects open positions matching configured role keywords across all Prague dist
 - `output/index.html` with new jobs highlighted
 
 The app remembers previously seen job IDs in `data/state.json`, so the next run can mark fresh postings as `NEW`.
+In GitHub Actions the file is persisted on the `state` branch (restored before each run, committed back after a successful deploy), so it survives any gap between runs.
 
 ## Setup
 

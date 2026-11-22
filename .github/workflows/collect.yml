@@ -4,7 +4,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write  # push data/state.json to the `state` branch
   pages: write
   id-token: write
 
@@ -28,13 +28,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # State lives on a dedicated `state` branch rather than in actions/cache,
+      # which GitHub evicts after 7 days without use.
       - name: Restore state
-        uses: actions/cache@v6
-        with:
-          path: data/state.json
-          key: findwork-state-${{ github.run_id }}
-          restore-keys: |
-            findwork-state-
+        run: |
+          mkdir -p data
+          if git ls-remote --exit-code --heads origin state >/dev/null; then
+            git fetch --depth=1 origin state
+            git show FETCH_HEAD:state.json > data/state.json
+          else
+            echo "No state branch yet; starting with empty state."
+          fi
 
       - name: Collect jobs
         run: python -m findwork collect
@@ -47,3 +51,28 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+      # Saved only after a successful deploy, so jobs are never marked as seen
+      # without having been published as NEW.
+      - name: Save state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          worktree="$RUNNER_TEMP/state"
+          if git ls-remote --exit-code --heads origin state >/dev/null; then
+            git fetch --depth=1 origin state
+            git worktree add --detach "$worktree" FETCH_HEAD
+          else
+            git worktree add --detach "$worktree"
+            git -C "$worktree" checkout --orphan state
+            git -C "$worktree" rm -rf --quiet .
+          fi
+          cp data/state.json "$worktree/state.json"
+          cd "$worktree"
+          git add state.json
+          if git diff --cached --quiet; then
+            echo "State unchanged."
+            exit 0
+          fi
+          git commit --quiet -m "Update state from run ${{ github.run_id }}"
+          git push origin HEAD:refs/heads/state
